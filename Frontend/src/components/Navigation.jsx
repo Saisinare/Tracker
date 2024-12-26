@@ -24,8 +24,7 @@ export default function Navigation() {
       <Typography
         as="li"
         variant="small"
-        color="blue-gray"
-        className="p-1 font-normal"
+        className="p-1 font-semibold text-gray-700"
       >
         <a href="#" className="flex items-center">
           My Playlist
@@ -65,14 +64,14 @@ export default function Navigation() {
   );
  
   return (
-    <div className=" w-full h-auto flex">
-      <Navbar className="sticky top-0 max-h-[768px] z-10 h-max max-w-full shadow-none border-b-blue-gray-300 rounded-none px-4 py-2 lg:px-8 lg:py-4">
-        <div className="flex items-center justify-between text-blue-gray-900">
-          <div className=" w-auto flex justify-between items-center ">
+    <div className=" w-full h-14 flex">
+      <Navbar className="sticky top-0 max-h-[768px] bg-transparent  z-10 h-full max-w-full shadow-sm rounded-none py-2 lg:px-8 lg:py-4">
+        <div className="flex h-full items-center justify-between text-blue-gray-900">
+          <div className=" w-auto h-full flex justify-between items-center ">
           <Typography
             as="a"
             href="#"
-            className="mr-4 text-lg border border-black rounded-md  p-2 px-5 font-bold cursor-pointer py-1.5 "
+            className="mr-4 text-lg  rounded-md  p-2 px-5 font-bold cursor-pointer py-1.5 "
           >
             Halo
           </Typography>
@@ -84,16 +83,16 @@ export default function Navigation() {
               <Button
                 variant="text"
                 size="sm"
-                className="hidden lg:inline-block"
+                className="hidden lg:inline-block rounded-none"
               >
                 <span>Log In</span>
               </Button>
               </Link>
               <Link to='/signup'>
               <Button
-                variant="gradient"
+                variant="black"
                 size="sm"
-                className="hidden lg:inline-block"
+                className="hidden lg:inline-block  rounded-none"
               >
                 <span>Sign Up</span>
               </Button>

@@ -1,7 +1,8 @@
 const express = require('express');
-const { getPlaylistVideos } = require('../controller/Playlist');
+const { getPlaylistVideos, getPlaylistDetails } = require('../controller/Playlist');
 const router = express.Router();
 
-router.get('/playlists/:playlistId',getPlaylistVideos)
+router.get('/playlists/:playlistId',getPlaylistDetails)
+router.get('/playlists/:playlistId/videos',getPlaylistVideos)
 
 module.exports = router

@@ -4,12 +4,16 @@ const authRoutes = require('./routes/Auth');
 const playlistRouter = require('./routes/Playlist');
 const app = express();
 const cors = require('cors');
+const {connectDB,syncModel} = require('./db')
 
 app.use(express.static('public'));
 app.use(cors());
 dotenv.config();
-app.use(authRoutes);
+connectDB();
+syncModel();
 app.use(express.json());
+app.use(express.urlencoded({extended:true}));
+app.use(authRoutes);
 app.use(playlistRouter);
 
 

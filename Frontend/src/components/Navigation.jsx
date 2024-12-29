@@ -20,23 +20,23 @@ export default function Navigation() {
   }, []);
  
   const navList = (
-    <ul className="mt-2 mb-4 flex flex-col gap-2 lg:mb-0 lg:mt-0 lg:flex-row lg:items-center lg:gap-6">
-      <Typography
+    <ul className="mt-2 mb-4 flex flex-col gap-2 lg:mb-0 lg:mt-0 lg:flex-row lg:items-center lg:gap-6 ">
+      <li
         as="li"
-        variant="small"
-        className="p-1 font-semibold text-gray-700"
+        variant=""
+        className="p-1 font-medium font-inter text-xs"
       >
-        <a href="#" className="flex items-center">
+        <a href="#" className="flex items-center  font-inter ">
           My Playlist
         </a>
-      </Typography>
+      </li>
       <Typography
         as="li"
         variant="small"
         color="blue-gray"
-        className="p-1 font-normal"
+        className="p-1 font-medium font-inter"
       >
-        <a href="#" className="flex items-center">
+        <a href="#" className="flex items-center font-inter text-xs">
           Add Playlist
         </a>
       </Typography>
@@ -44,9 +44,9 @@ export default function Navigation() {
         as="li"
         variant="small"
         color="blue-gray"
-        className="p-1 font-normal"
+        className="p-1 font-medium font-inter"
       >
-        <a href="#" className="flex items-center">
+        <a href="#" className="flex items-center font-inter text-xs">
           Notes
         </a>
       </Typography>
@@ -54,9 +54,9 @@ export default function Navigation() {
         as="li"
         variant="small"
         color="blue-gray"
-        className="p-1 font-normal"
+        className="p-1 font-medium"
       >
-        <a href="#" className="flex items-center">
+        <a href="#" className="flex items-center font-inter text-xs">
           Settings
         </a>
       </Typography>
@@ -64,18 +64,19 @@ export default function Navigation() {
   );
  
   return (
-    <div className=" w-full h-14 flex">
-      <Navbar className="sticky top-0 max-h-[768px] bg-transparent  z-10 h-full max-w-full shadow-sm rounded-none py-2 lg:px-8 lg:py-4">
+    <div className=" w-full h-14 flex top-0 sticky border-b-2 border-black">
+      <Navbar style={{background:'rgb(247, 247, 247)'}} className="sticky top-0 max-h-[768px] bg-transparent backdrop-blur-100 z-10 h-full max-w-full shadow-sm rounded-none py-2 lg:px-8 lg:py-4">
         <div className="flex h-full items-center justify-between text-blue-gray-900">
-          <div className=" w-auto h-full flex justify-between items-center ">
+          <div className=" w-auto h-full flex justify-between items-center  ">
           <Typography
             as="a"
             href="#"
-            className="mr-4 text-lg  rounded-md  p-2 px-5 font-bold cursor-pointer py-1.5 "
+            className="mr-4 text-lg  rounded-md  p-2 px-5
+              font-bold cursor-pointer py-1.5 font-inter "
           >
             Halo
           </Typography>
-          <div className="hidden lg:flex lg:ml-12 ">{navList}</div>
+          <div className="hidden lg:flex lg:ml-12  ">{navList}</div>
           </div>
           <div className="flex items-center gap-4 ">
             <div className="flex items-center gap-x-1">
@@ -83,7 +84,7 @@ export default function Navigation() {
               <Button
                 variant="text"
                 size="sm"
-                className="hidden lg:inline-block rounded-none"
+                className="hidden lg:inline-block rounded-none "
               >
                 <span>Log In</span>
               </Button>

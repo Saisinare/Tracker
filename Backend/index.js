@@ -5,9 +5,12 @@ const playlistRouter = require('./routes/Playlist');
 const app = express();
 const cors = require('cors');
 const {connectDB,syncModel} = require('./db')
+const cookieParser = require('cookie-parser');
 
 app.use(express.static('public'));
 app.use(cors());
+app.use(cookieParser());
+
 dotenv.config();
 connectDB();
 syncModel();

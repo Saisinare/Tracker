@@ -31,7 +31,7 @@ export default function Home() {
             <div className=' flex w-screen h-screen  items-center mt-24 gap-3 flex-col '>
                 <div className='flex w-full h-12 justify-center gap-2'>
                     <input type='text' value={playlistURL} className='h-full w-2/3 rounded-none px-2  shadow border-2 border-black text-sm font-medium text-blue-gray-900' onChange={changePlaylistState} />
-                    <Button onClick={handlClick} className=' h-full w-1/12 rounded-none -z-10'> Search </Button>
+                    <Button onClick={handlClick} className=' h-full w-1/12 rounded-none z-1'> Search </Button>
                 </div>
                 {
 

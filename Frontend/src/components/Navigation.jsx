@@ -9,6 +9,7 @@ import {
   Collapse,
 } from "@material-tailwind/react";
 import { Link } from "react-router-dom";
+import {FaBolt, FaClipboardList, FaCog, FaList, FaNotesMedical, FaPlus, FaStickyNote} from 'react-icons/fa'
 export default function Navigation() {
   const [openNav, setOpenNav] = React.useState(false);
  
@@ -26,9 +27,10 @@ export default function Navigation() {
         variant=""
         className="p-1 font-medium font-inter text-xs"
       >
-        <a href="#" className="flex items-center  font-inter ">
-          My Playlist
-        </a>
+        <Link to={'collection'} className="flex items-center  font-inter gap-1 ">
+          <FaList/>
+          My Collection
+        </Link>
       </li>
       <Typography
         as="li"
@@ -36,9 +38,10 @@ export default function Navigation() {
         color="blue-gray"
         className="p-1 font-medium font-inter"
       >
-        <a href="#" className="flex items-center font-inter text-xs">
+        <Link to={'collection'} className="flex items-center font-inter text-xs gap-1">
+          <FaPlus/>
           Add Playlist
-        </a>
+        </Link>
       </Typography>
       <Typography
         as="li"
@@ -46,9 +49,10 @@ export default function Navigation() {
         color="blue-gray"
         className="p-1 font-medium font-inter"
       >
-        <a href="#" className="flex items-center font-inter text-xs">
+        <Link to={'/notes'} className="flex items-center font-inter text-xs gap-1">
+          <FaStickyNote/>
           Notes
-        </a>
+        </Link>
       </Typography>
       <Typography
         as="li"
@@ -56,9 +60,10 @@ export default function Navigation() {
         color="blue-gray"
         className="p-1 font-medium"
       >
-        <a href="#" className="flex items-center font-inter text-xs">
+        <Link to={'/settings'} className="flex items-center font-inter text-xs gap-1">
+          <FaCog/>
           Settings
-        </a>
+        </Link>
       </Typography>
     </ul>
   );
@@ -74,7 +79,7 @@ export default function Navigation() {
             className="mr-4 text-lg  rounded-md  p-2 px-5
               font-bold cursor-pointer py-1.5 font-inter "
           >
-            Halo
+            Tracker
           </Typography>
           <div className="hidden lg:flex lg:ml-12  ">{navList}</div>
           </div>

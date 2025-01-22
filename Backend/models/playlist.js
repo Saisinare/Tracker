@@ -1,22 +1,25 @@
-const {DataTypes} = require('sequelize');
+const {DataTypes, JSONB} = require('sequelize');
 const {sequelize} = require('../db');
 
 const Playlist = sequelize.define('Playlist',{
     title:{
-        type:DataTypes.STRING,
+        type:DataTypes.TEXT,
     },
     description:{
-        type:DataTypes.STRING
+        type:DataTypes.TEXT,
+    },
+    thumbnail:{
+        type:DataTypes.STRING,
     },
     duration:{
-        type:DataTypes.STRING
+        type:JSONB,
     },
     playlistId:{
         type:DataTypes.STRING,
         unique:true
     },
     videos:{
-        type:DataTypes.JSONB,
+        type:DataTypes.ARRAY(DataTypes.JSONB),
     },
     progress:{
         type:DataTypes.FLOAT,

@@ -1,6 +1,6 @@
 const axios = require('axios');
-const User = require('../models/user'); // Ensure correct import paths
-const Playlist = require('../models/playlist'); // Ensure correct import paths
+const User = require('../models/user'); 
+const Playlist = require('../models/playlist'); 
 
 // Helper function to get all videos in a playlist
 async function getEntirePlaylistVideos(playlist, id, nextPageToken) {
@@ -59,8 +59,10 @@ async function getPlaylistDuration(playlist) {
     try {
       const response = await axios.get(finalURL);
       const items = response.data.items;
-      items.forEach(item => {
+      items.forEach((item,index) => {
         const { hours, minutes, seconds } = parseDuration(item.contentDetails.duration);
+        const time = {"hours":hours,"minutes":minutes,"seconds":seconds};
+        playlist[index+i].time = time;
         totalDurationInSeconds += (hours * 3600) + (minutes * 60) + seconds;
       });
     } catch (error) {
@@ -72,23 +74,35 @@ async function getPlaylistDuration(playlist) {
   const totalHours = Math.floor(totalDurationInSeconds / 3600);
   const totalMinutes = Math.floor((totalDurationInSeconds % 3600) / 60);
   const totalSeconds = totalDurationInSeconds % 60;
-  return { hours: totalHours, minutes: totalMinutes, seconds: totalSeconds };
+  return {"videos":playlist ,hours: totalHours, minutes: totalMinutes, seconds: totalSeconds };
 }
 
-// API to get playlist details
-exports.getPlaylistDetails = async (req, res) => {
-  const id = req.params.playlistId;
-  const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${id}&key=${process.env.YOUTUBE_API_KEY}`;
+async function getPlaylistInfo(playlistId){
+  const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}&key=${process.env.YOUTUBE_API_KEY}`;
 
-  try {
-    const playlist = await getEntirePlaylistVideos([], id);
-    const playListDuration = await getPlaylistDuration(playlist);
+  try{
     const response = await axios.get(url);
     const resPlaylist = {
       title: response.data.items[0].snippet.title,
       description: response.data.items[0].snippet.description,
       thumbnail: response.data.items[0].snippet.thumbnails.high.url,
     };
+    return resPlaylist;
+  }catch(error){
+    throw new Error ("Error while fetching the playlist Info");
+  }
+}
+
+// API to get playlist details
+exports.getPlaylistDetails = async (req, res) => {
+  const id = req.params.playlistId;
+
+  try {
+    const playlist = await getEntirePlaylistVideos([], id);
+    const playListDuration = await getPlaylistDuration(playlist);
+    console.log(playListDuration)
+    const resPlaylist = await getPlaylistInfo(id);
+    console.log(resPlaylist)
     res.status(200).json({ playListDetail: resPlaylist, duration: playListDuration });
   } catch (error) {
     console.error(error);
@@ -103,16 +117,72 @@ exports.addPlaylistToCollection = async (req, res) => {
 
   try {
     const user = await User.findOne({ where: { id: userId } });
-    const playlist = await Playlist.findByPk(playlistId); // Fetch existing playlist by ID
+    const playlist = await Playlist.findOne({where:{playlistId}}); // Fetch existing playlist by ID
+    if(user){
+      if(!playlist){
+        const videos = await getEntirePlaylistVideos([],playlistId);  //return array of videos 
+        const playlistInfo = await getPlaylistInfo(playlistId);             //{ title thumbnail description }
+        const playlistDurationInfo = await getPlaylistDuration(videos)      //{videos[{title,description,time{}}],hours,minutes,seconds}
+        
+        const newPlaylist = new Playlist({playlistId:playlistId,title:playlistInfo.title,description:playlistInfo.description,duration:{hour : playlistDurationInfo.hours,minutes:playlistDurationInfo.minutes,seconds:playlistDurationInfo.seconds},thumbnail:playlistInfo.thumbnail,videos:playlistDurationInfo.videos})
 
-    if (!user || !playlist) {
-      return res.status(404).json({ pass: false, message: "User or Playlist not found" });
+        await newPlaylist.save();
+
+        await user.addPlaylist(newPlaylist);
+        res.status(200).json({ pass: true, message: "Playlist added to user's collection successfully" });
+      }
+      if(playlist){
+        await user.addPlaylist(playlist);
+        res.status(200).json({pass:true,message:"Playlist added to user's collection successfully"})
+      }
     }
 
-    await user.addPlaylist(playlist); // Use Sequelize's method to add playlist to user
-    res.status(200).json({ pass: true, message: "Playlist added to user's collection successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ pass: false, message: "Internal Server Error" });
+  }
+}
+//APIs remove playlsit from user collection 
+exports.removePlaylistFromCollection = async (req,res)=>{
+  try {
+    const userId = req.user.id; // Assuming authentication middleware attaches user
+    const { playlistId } = req.params;
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+        return res.status(404).json({ message: "User not found" });
+    }
+
+    const playlist = await Playlist.findOne({ where: { playlistId } });
+    if (!playlist) {
+        return res.status(404).json({ message: "Playlist not found" });
+    }
+
+    // Unlink the playlist from the user
+    await user.removePlaylist(playlist);
+
+    return res.json({ message: "Playlist unlinked successfully" });
+} catch (error) {
+    console.error("Error unlinking playlist:", error);
+    return res.status(500).json({ message: "Internal server error" });
+}
+}
+//API for getting collection of user
+exports.getCollection = async (req,res) => {
+  const userId = req.user.id;
+  try{
+    const user = await User.findByPk(userId,{
+      include:{
+        model:Playlist,
+        through:{attributes:[]}
+      }
+    })
+    if(!user){
+      return res.json({pass:false,message:"User not Found"})
+    }
+    return res.json({pass:true,"Collection":user.Playlists})
+  }catch(error){
+    console.log(error);
+    res.json({pass:false,"message":"Internal Server Error"});
   }
 }

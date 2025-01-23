@@ -6,14 +6,12 @@ const app = express();
 const cors = require('cors');
 const {connectDB,syncModel} = require('./db')
 const cookieParser = require('cookie-parser');
-const defineRelationship = require('./models/relationship')
 app.use(express.static('public'));
 app.use(cors());
 app.use(cookieParser());
 
 dotenv.config();
 connectDB();
-defineRelationship();
 syncModel();
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));

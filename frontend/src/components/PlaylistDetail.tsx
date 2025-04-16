@@ -1,39 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-interface Video {
-  _id: string;
-  title: string;
-  youtubeId: string;
-  isCompleted: boolean;
-  notes: string;
-  order: number;
-}
-
-interface Playlist {
-  _id: string;
-  title: string;
-  youtubeUrl: string;
-  videos: Video[];
-}
+import { getPlaylist, updateVideoStatus, deletePlaylist } from '../utils/api';
+import { Playlist } from '../types';
 
 const PlaylistDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editingNote, setEditingNote] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPlaylist = async () => {
+      if (!id) return;
+      
       try {
-        const response = await axios.get(`http://localhost:5000/api/playlists/${id}`);
+        const response = await getPlaylist(id);
         setPlaylist(response.data);
         setLoading(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching playlist:', error);
+        setError(error.response?.data?.message || 'Failed to fetch playlist');
         setLoading(false);
       }
     };
@@ -41,68 +28,72 @@ const PlaylistDetail: React.FC = () => {
     fetchPlaylist();
   }, [id]);
 
-  const handleVideoStatusChange = async (videoId: string, isCompleted: boolean) => {
+  const handleVideoStatusUpdate = async (videoId: string, isCompleted: boolean, notes?: string) => {
+    if (!playlist || !id) return;
+    
     try {
-      await axios.put(`http://localhost:5000/api/videos/${videoId}`, {
-        isCompleted,
-      });
-      setPlaylist((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          videos: prev.videos.map((video) =>
-            video._id === videoId ? { ...video, isCompleted } : video
-          ),
-        };
-      });
-    } catch (error) {
+      const response = await updateVideoStatus(id, videoId, isCompleted, notes);
+      setPlaylist(response.data);
+    } catch (error: any) {
       console.error('Error updating video status:', error);
-    }
-  };
-
-  const handleNoteEdit = (videoId: string, currentNote: string) => {
-    setEditingNote(videoId);
-    setNoteText(currentNote);
-  };
-
-  const handleNoteSave = async (videoId: string) => {
-    try {
-      await axios.put(`http://localhost:5000/api/videos/${videoId}`, {
-        notes: noteText,
-      });
-      setPlaylist((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          videos: prev.videos.map((video) =>
-            video._id === videoId ? { ...video, notes: noteText } : video
-          ),
-        };
-      });
-      setEditingNote(null);
-    } catch (error) {
-      console.error('Error saving note:', error);
+      setError(error.response?.data?.message || 'Failed to update video status');
     }
   };
 
   const handleDeletePlaylist = async () => {
+    if (!id) return;
+    
     if (window.confirm('Are you sure you want to delete this playlist?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/playlists/${id}`);
+        await deletePlaylist(id);
         navigate('/');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting playlist:', error);
+        setError(error.response?.data?.message || 'Failed to delete playlist');
       }
     }
   };
 
+  const openYouTubeVideo = (videoId: string) => {
+    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+  };
+
   if (loading) {
-    return <div className="text-center">Loading...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-red-600 mb-4">{error}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-indigo-600 hover:text-indigo-800"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   if (!playlist) {
-    return <div className="text-center">Playlist not found</div>;
+    return (
+      <div className="text-center py-8">
+        <div className="text-gray-600">Playlist not found</div>
+      </div>
+    );
   }
+
+  // Calculate completion percentage
+  const completedVideos = playlist.videos.filter(video => video.isCompleted).length;
+  const totalVideos = playlist.videos.length;
+  const completionPercentage = totalVideos > 0 
+    ? Math.round((completedVideos / totalVideos) * 100) 
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -116,49 +107,48 @@ const PlaylistDetail: React.FC = () => {
         </button>
       </div>
 
+      <div className="bg-white shadow rounded-lg p-4">
+        <div className="mb-2 flex justify-between">
+          <span className="text-sm font-medium text-gray-700">Progress: {completionPercentage}%</span>
+          <span className="text-sm text-gray-500">{completedVideos} of {totalVideos} completed</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div 
+            className="bg-blue-600 h-2.5 rounded-full" 
+            style={{ width: `${completionPercentage}%` }}
+          ></div>
+        </div>
+      </div>
+
       <div className="bg-white shadow rounded-lg">
         <ul className="divide-y divide-gray-200">
           {playlist.videos.map((video) => (
-            <li key={video._id} className="p-4">
+            <li key={video.videoId} className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <input
                     type="checkbox"
                     checked={video.isCompleted}
-                    onChange={(e) => handleVideoStatusChange(video._id, e.target.checked)}
+                    onChange={(e) => handleVideoStatusUpdate(video.videoId, e.target.checked, video.notes)}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <span className="text-gray-900">{video.title}</span>
+                  <span 
+                    className="text-gray-900 cursor-pointer hover:text-blue-600 hover:underline"
+                    onClick={() => openYouTubeVideo(video.videoId)}
+                  >
+                    {video.title}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-4">
-                  {editingNote === video._id ? (
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                      <button
-                        onClick={() => handleNoteSave(video._id)}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleNoteEdit(video._id, video.notes)}
-                      className="text-gray-600 hover:text-gray-900"
-                    >
-                      {video.notes ? 'Edit Note' : 'Add Note'}
-                    </button>
-                  )}
+                  <textarea
+                    placeholder="Add notes..."
+                    value={video.notes || ''}
+                    onChange={(e) => handleVideoStatusUpdate(video.videoId, video.isCompleted, e.target.value)}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    rows={2}
+                  />
                 </div>
               </div>
-              {video.notes && editingNote !== video._id && (
-                <div className="mt-2 text-sm text-gray-600">{video.notes}</div>
-              )}
             </li>
           ))}
         </ul>

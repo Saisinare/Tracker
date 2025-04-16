@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const playlistController = require('../controllers/playlistController');
+const auth = require('../middleware/auth');
+
+// All routes require authentication
+router.use(auth);
 
 // Get all playlists
 router.get('/', playlistController.getAllPlaylists);

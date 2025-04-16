@@ -8,10 +8,10 @@ const getBestThumbnail = (thumbnails) => {
     return thumbnails.maxres?.url || thumbnails.high?.url || thumbnails.medium?.url || thumbnails.standard?.url || thumbnails.default?.url;
 };
 
-// Get all playlists with fresh YouTube data
+// Get all playlists for the authenticated user
 exports.getAllPlaylists = async (req, res) => {
     try {
-        const playlists = await Playlist.find().sort({ createdAt: -1 });
+        const playlists = await Playlist.find({ user: req.user._id }).sort({ createdAt: -1 });
         
         // Fetch fresh information for each playlist
         const playlistsWithDetails = await Promise.all(playlists.map(async (playlist) => {
@@ -24,7 +24,6 @@ exports.getAllPlaylists = async (req, res) => {
                     { youtubeVideoId: 1, isCompleted: 1, notes: 1 }
                 );
                 
-                // Create a map of video statuses
                 const statusMap = new Map(
                     videoStatuses.map(v => [v.youtubeVideoId, { 
                         isCompleted: v.isCompleted,
@@ -32,14 +31,12 @@ exports.getAllPlaylists = async (req, res) => {
                     }])
                 );
 
-                // Combine fresh video info with stored completion status
                 const videosWithStatus = freshInfo.videos.map(video => ({
                     ...video,
                     isCompleted: statusMap.get(video.videoId)?.isCompleted || false,
                     notes: statusMap.get(video.videoId)?.notes || ''
                 }));
 
-                // Calculate completion percentage
                 const totalVideos = videosWithStatus.length;
                 const completedVideos = videosWithStatus.filter(v => v.isCompleted).length;
                 const progress = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
@@ -54,7 +51,6 @@ exports.getAllPlaylists = async (req, res) => {
                 };
             } catch (error) {
                 console.error(`Error fetching fresh info for playlist ${playlist.youtubePlaylistId}:`, error);
-                // Return basic playlist info if YouTube fetch fails
                 return {
                     _id: playlist._id,
                     title: playlist.title,
@@ -71,7 +67,7 @@ exports.getAllPlaylists = async (req, res) => {
     }
 };
 
-// Create a new playlist by fetching data from YouTube
+// Create a new playlist
 exports.createPlaylist = async (req, res) => {
     const { youtubeUrl } = req.body;
 
@@ -80,47 +76,48 @@ exports.createPlaylist = async (req, res) => {
     }
 
     try {
-        // 1. Extract Playlist ID
         const youtubePlaylistId = youtubeService.extractPlaylistIdFromUrl(youtubeUrl);
 
-        // 2. Check if playlist already exists in DB
-        const existingPlaylist = await Playlist.findOne({ youtubePlaylistId });
+        // Check if playlist already exists for this user
+        const existingPlaylist = await Playlist.findOne({ 
+            youtubePlaylistId,
+            user: req.user._id 
+        });
+        
         if (existingPlaylist) {
-            return res.status(409).json({ message: 'Playlist already exists in the tracker.', playlistId: existingPlaylist._id });
+            return res.status(409).json({ 
+                message: 'Playlist already exists in your collection',
+                playlistId: existingPlaylist._id 
+            });
         }
 
-        // 3. Fetch Playlist Details from YouTube API
         const playlistDetails = await youtubeService.getPlaylistDetails(youtubePlaylistId);
-
-        // 4. Fetch Playlist Items (Video IDs and positions) from YouTube API
         const playlistItems = await youtubeService.getAllPlaylistItems(youtubePlaylistId);
 
         if (!playlistItems || playlistItems.length === 0) {
             return res.status(404).json({ message: 'Could not find any videos in the playlist.' });
         }
 
-        // 5. Extract Video IDs
         const videoIds = playlistItems.map(item => item.contentDetails?.videoId).filter(id => id);
         if (videoIds.length === 0) {
             return res.status(404).json({ message: 'No valid video IDs found in the playlist items.' });
         }
 
-        // 6. Fetch Video Details (including durations) from YouTube API
         const videoDetailsList = await youtubeService.getVideoDetails(videoIds);
         const videoDetailsMap = new Map(videoDetailsList.map(video => [video.id, video]));
 
-        // 7. Create the Playlist Document (without videos initially)
+        // Create the Playlist with user reference
         const newPlaylist = new Playlist({
             title: playlistDetails.title || 'Untitled Playlist',
             youtubePlaylistId: youtubePlaylistId,
             description: playlistDetails.description,
-            thumbnailUrl: getBestThumbnail(playlistDetails.thumbnails),
+            thumbnailUrl: playlistDetails.thumbnails?.high?.url || playlistDetails.thumbnails?.default?.url,
             sourceUrl: youtubeUrl,
-            totalDurationSeconds: 0, // Will be calculated next
-            videos: [] // Will be populated with saved video IDs
+            user: req.user._id,
+            totalDurationSeconds: 0,
+            videos: []
         });
 
-        // 8. Create Video Documents and Calculate Total Duration
         let totalDuration = 0;
         const videoDocsToSave = [];
         const savedVideoIds = [];
@@ -132,7 +129,7 @@ exports.createPlaylist = async (req, res) => {
 
             if (!videoId || typeof position === 'undefined' || !videoDetail) {
                 console.warn(`Skipping playlist item due to missing data: ${JSON.stringify(item.snippet?.title)}`);
-                continue; // Skip if essential data is missing
+                continue;
             }
 
             const durationSeconds = youtubeService.parseDurationToSeconds(videoDetail.contentDetails?.duration);
@@ -141,69 +138,59 @@ exports.createPlaylist = async (req, res) => {
             videoDocsToSave.push({
                 title: videoDetail.snippet?.title || 'Untitled Video',
                 youtubeVideoId: videoId,
-                playlist: newPlaylist._id, // Link to the parent playlist
+                playlist: newPlaylist._id,
                 description: videoDetail.snippet?.description,
-                thumbnailUrl: getBestThumbnail(videoDetail.snippet?.thumbnails),
+                thumbnailUrl: videoDetail.snippet?.thumbnails?.high?.url || videoDetail.snippet?.thumbnails?.default?.url,
                 durationSeconds: durationSeconds,
                 order: position,
-                isCompleted: false, // Default status
-                notes: '' // Default notes
+                isCompleted: false,
+                notes: ''
             });
         }
 
-        // 9. Bulk insert videos for efficiency
         if (videoDocsToSave.length > 0) {
-             const savedVideos = await Video.insertMany(videoDocsToSave);
-             savedVideoIds.push(...savedVideos.map(v => v._id));
+            const savedVideos = await Video.insertMany(videoDocsToSave);
+            savedVideoIds.push(...savedVideos.map(v => v._id));
         }
 
-        // 10. Update Playlist with total duration and video IDs
         newPlaylist.totalDurationSeconds = totalDuration;
         newPlaylist.videos = savedVideoIds;
         const savedPlaylist = await newPlaylist.save();
 
-        res.status(201).json(savedPlaylist);
+        // Add playlist to user's collection
+        await req.user.playlists.push(savedPlaylist._id);
+        await req.user.save();
 
+        res.status(201).json(savedPlaylist);
     } catch (error) {
         console.error("Error in createPlaylist:", error);
-        // Handle specific errors (e.g., API errors, validation errors)
         if (error.message.includes('Could not extract Playlist ID')) {
             return res.status(400).json({ message: 'Invalid YouTube Playlist URL format.' });
         }
-        if (error.message.includes('not found')) {
-            return res.status(404).json({ message: error.message });
-        }
-        if (error.response && error.response.data && error.response.data.error) {
-             // Handle Google API specific errors
-             console.error("Google API Error:", error.response.data.error);
-             return res.status(error.response.data.error.code || 500).json({ 
-                 message: `YouTube API Error: ${error.response.data.error.message}` 
-             });
-        }
-        res.status(500).json({ message: 'Failed to create playlist.', error: error.message });
+        res.status(500).json({ message: error.message });
     }
 };
 
-// Get a single playlist with fresh YouTube data
+// Get a single playlist
 exports.getPlaylist = async (req, res) => {
     try {
-        const playlist = await Playlist.findById(req.params.id);
+        const playlist = await Playlist.findOne({
+            _id: req.params.id,
+            user: req.user._id
+        });
         
         if (!playlist) {
             return res.status(404).json({ message: 'Playlist not found' });
         }
 
         try {
-            // Fetch fresh information from YouTube
             const freshInfo = await youtubeService.getFreshPlaylistInfo(playlist.youtubePlaylistId);
             
-            // Get completion status for videos from database
             const videoStatuses = await Video.find(
                 { playlist: playlist._id },
                 { youtubeVideoId: 1, isCompleted: 1, notes: 1 }
             );
             
-            // Create a map of video statuses
             const statusMap = new Map(
                 videoStatuses.map(v => [v.youtubeVideoId, { 
                     isCompleted: v.isCompleted,
@@ -211,14 +198,12 @@ exports.getPlaylist = async (req, res) => {
                 }])
             );
 
-            // Combine fresh video info with stored completion status
             const videosWithStatus = freshInfo.videos.map(video => ({
                 ...video,
                 isCompleted: statusMap.get(video.videoId)?.isCompleted || false,
                 notes: statusMap.get(video.videoId)?.notes || ''
             }));
 
-            // Calculate completion percentage
             const totalVideos = videosWithStatus.length;
             const completedVideos = videosWithStatus.filter(v => v.isCompleted).length;
             const progress = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
@@ -235,7 +220,6 @@ exports.getPlaylist = async (req, res) => {
             res.json(response);
         } catch (youtubeError) {
             console.error('Error fetching fresh YouTube data:', youtubeError);
-            // Fallback to database information if YouTube fetch fails
             res.status(500).json({ 
                 message: 'Failed to fetch fresh YouTube data',
                 playlist: playlist 
@@ -275,25 +259,32 @@ exports.updatePlaylist = async (req, res) => {
     }
 };
 
-// Delete a playlist and its associated videos
+// Delete a playlist
 exports.deletePlaylist = async (req, res) => {
     try {
-        const playlist = await Playlist.findById(req.params.id);
+        const playlist = await Playlist.findOne({
+            _id: req.params.id,
+            user: req.user._id
+        });
+
         if (!playlist) {
             return res.status(404).json({ message: 'Playlist not found' });
         }
 
-        // Delete all associated videos using the playlist reference
+        // Remove playlist from user's collection
+        req.user.playlists = req.user.playlists.filter(
+            id => id.toString() !== playlist._id.toString()
+        );
+        await req.user.save();
+
+        // Delete associated videos
         await Video.deleteMany({ playlist: playlist._id });
 
-        // Delete the playlist itself
-        // Mongoose 6+ uses deleteOne() on the model or remove() on the instance.
-        // findByIdAndDelete is often simpler.
-        await Playlist.findByIdAndDelete(req.params.id);
+        // Delete the playlist
+        await playlist.remove();
 
-        res.json({ message: 'Playlist and associated videos deleted successfully' });
+        res.json({ message: 'Playlist deleted successfully' });
     } catch (error) {
-        console.error("Error in deletePlaylist:", error);
         res.status(500).json({ message: error.message });
     }
 };

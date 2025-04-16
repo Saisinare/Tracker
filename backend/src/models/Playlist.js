@@ -20,6 +20,11 @@ const playlistSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Video'
     }],
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     sourceUrl: String,
     createdAt: {
         type: Date,
@@ -37,7 +42,9 @@ playlistSchema.pre('save', function(next) {
     next();
 });
 
-// Index for faster lookups by YouTube ID
+// Index for faster lookups by YouTube ID and user
 playlistSchema.index({ youtubePlaylistId: 1 });
+playlistSchema.index({ user: 1 });
 
-module.exports = mongoose.model('Playlist', playlistSchema); 
+const Playlist = mongoose.model('Playlist', playlistSchema);
+module.exports = Playlist; 

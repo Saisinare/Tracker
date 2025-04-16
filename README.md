@@ -1,33 +1,209 @@
-# YouTube Playlist Tracker
+# Tracker.io
 
-A full-stack web application for tracking YouTube playlists, managing video progress, and taking notes.
+A web application for tracking progress through YouTube playlists. Users can add playlists, mark videos as completed, and track their learning journey.
 
 ## Features
 
-- Add YouTube playlists using playlist links
-- View all videos in a playlist
-- Mark videos as completed/not completed
-- Add and edit notes for each video
-- Track progress with completion percentage
-- Sort and organize playlists
-- Clean and modern UI with Tailwind CSS
+- User authentication and authorization
+- Add YouTube playlists to your personal collection
+- Track video completion status
+- Add notes for each video
+- View playlist progress
+- Real-time synchronization with YouTube data
+- Responsive modern UI
 
 ## Tech Stack
 
-### Frontend
-- React.js with TypeScript
-- Tailwind CSS for styling
-- React Router for navigation
-- Axios for API calls
-
 ### Backend
-- Node.js with Express
+- Node.js
+- Express.js
 - MongoDB with Mongoose
-- RESTful API architecture
+- JWT Authentication
+- YouTube Data API v3
 
-## Project Structure
+### Frontend
+- React
+- TypeScript
+- Tailwind CSS
+- React Router
 
+## API Routes
+
+### Authentication Routes
+
+#### POST /api/auth/signup
+Create a new user account.
+```json
+{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "password123"
+}
 ```
+Response:
+```json
+{
+  "message": "User created successfully",
+  "token": "jwt-token",
+  "user": {
+    "id": "user-id",
+    "username": "johndoe",
+    "email": "john@example.com"
+  }
+}
+```
+
+#### POST /api/auth/login
+Login to existing account.
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+Response:
+```json
+{
+  "message": "Login successful",
+  "token": "jwt-token",
+  "user": {
+    "id": "user-id",
+    "username": "johndoe",
+    "email": "john@example.com"
+  }
+}
+```
+
+#### GET /api/auth/profile
+Get user profile (requires authentication).
+
+Headers:
+```
+Authorization: Bearer jwt-token
+```
+
+#### PUT /api/auth/profile
+Update user profile (requires authentication).
+```json
+{
+  "username": "newusername",
+  "email": "newemail@example.com",
+  "password": "newpassword123"
+}
+```
+
+### Playlist Routes (All require authentication)
+
+#### GET /api/playlists
+Get all playlists for the authenticated user.
+
+#### POST /api/playlists
+Add a new playlist.
+```json
+{
+  "youtubeUrl": "https://www.youtube.com/playlist?list=playlist-id"
+}
+```
+
+#### GET /api/playlists/:id
+Get a specific playlist by ID.
+
+#### PUT /api/playlists/:id
+Update playlist details.
+```json
+{
+  "title": "New Title"
+}
+```
+
+#### DELETE /api/playlists/:id
+Delete a playlist.
+
+#### GET /api/playlists/:id/progress
+Get playlist completion progress.
+
+### Video Routes (All require authentication)
+
+#### PUT /api/videos/status
+Update video completion status.
+```json
+{
+  "playlistId": "playlist-id",
+  "videoId": "video-id",
+  "isCompleted": true,
+  "notes": "Optional notes about the video"
+}
+```
+
+## Setup
+
+1. Clone the repository
+```bash
+git clone https://github.com/yourusername/tracker.io.git
+cd tracker.io
+```
+
+2. Install dependencies
+```bash
+# Install backend dependencies
+cd backend
+npm install
+
+# Install frontend dependencies
+cd ../frontend
+npm install
+```
+
+3. Environment Variables
+
+Create a `.env` file in the backend directory:
+```env
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/TrackerDB
+NODE_ENV=development
+YOUTUBE_API_KEY=your-youtube-api-key
+JWT_SECRET=your-jwt-secret-key
+```
+
+4. Start the application
+```bash
+# Start backend (from backend directory)
+npm start
+
+# Start frontend (from frontend directory)
+npm start
+```
+
+## Authentication
+
+The application uses JWT (JSON Web Token) for authentication. To make authenticated requests:
+
+1. First, signup or login to get a JWT token
+2. Include the token in the Authorization header for all protected routes:
+```
+Authorization: Bearer your-jwt-token
+```
+
+The token expires after 7 days, after which you'll need to login again.
+
+## Security Notes
+
+- Never commit your `.env` file
+- Change the JWT secret in production
+- Use strong passwords
+- The application uses bcrypt for password hashing
+- All playlist operations are protected and user-specific
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
 .
 ├── frontend/              # React frontend
 │   ├── src/
